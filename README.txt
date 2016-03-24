@@ -1,7 +1,8 @@
 lustache-cli
 
 lustache-cli is a command-line interface to lustache, the mustache templating
-engine for lua. It depends on the following libraries:
+engine for lua. It is developed and tested against lua 5.3, but it may work
+just fine with 5.1 and 5.2. It depends on the following libraries:
 
 - lustache (obviously)
 - argparse
