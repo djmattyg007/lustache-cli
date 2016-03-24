@@ -1,0 +1,88 @@
+#!/usr/bin/lua5.3
+
+local VERSION = "1.0.0"
+
+local argparse = require "argparse"
+
+local parser = argparse("lustache-cli", "Render mustache templates with lustache on the command line.")
+local file_input = parser:option("-i --input-file", "Supply input template from text file."):count("0-1"):convert(io.open)
+local stdin_input = parser:flag("--input-stdin", "Accept input template as string from STDIN."):count("0-1")
+parser:mutex(
+  file_input,
+  stdin_input
+)
+local stdin_json = parser:flag("--json-stdin", "Accept context as JSON string from STDIN."):count("0-1")
+parser:mutex(
+  parser:option("-j --json-data", "Supply context as inline JSON."):count("0-1"),
+  parser:option("-J --json-file", "Supply context from JSON file."):count("0-1"):convert(io.open),
+  stdin_json
+)
+parser:mutex(
+  stdin_json,
+  stdin_input
+)
+
+parser:option("-o --output-file", "Save render result to file."):count("0-1")
+parser:flag("-O --output-stdout", "When saving render result to file, also output to STDOUT."):count("0-1")
+
+parser:flag("-v --version", "Display version information and exit.")
+
+local args = parser:parse()
+if args.version then
+  local lustache = require "lustache"
+  print("lustache-cli version " .. VERSION)
+  print("lustache version " .. lustache.version)
+  os.exit()
+end
+
+local input_string = nil
+if args.input_stdin then
+  input_string = io.stdin:read("*all")
+elseif args.input_file then
+  input_string = args.input_file:read("*all")
+end
+
+if not input_string then
+  io.stderr:write("No input supplied\n")
+  os.exit(1)
+end
+
+local context_string = nil
+if args.json_stdin then
+  context_string = io.stdin:read("*all")
+elseif args.json_data then
+  context_string = args.json_data
+elseif args.json_file then
+  context_string = args.json_file:read("*all")
+end
+
+if not context_string then
+  io.stderr:write("No context supplied\n")
+  os.exit(2)
+end
+
+local json = require "json"
+local context = json.decode(context_string, true)
+if not context then
+  io.stderr:write("Could not decode supplied JSON\n")
+  os.exit(3)
+end
+
+local lustache = require "lustache"
+render_output = lustache:render(input_string, context)
+
+local output_stdout = false
+if args.output_file then
+  local outfile = io.open(args.output_file, "w")
+  outfile:write(render_output)
+  outfile:close()
+  if args.output_stdout then
+    output_stdout = true
+  end
+else
+  output_stdout = true
+end
+
+if output_stdout == true then
+  io.stdout:write(render_output)
+end
